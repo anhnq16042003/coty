@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Báo Cáo Hàng Tháng - Đăng Nhập</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            padding: 20px;
+        }
+        h2, h3 {
+            text-align: center;
+        }
+        input, button {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        #login-form, #report-section, #first-login-form {
+            display: none;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table, th, td {
+            border: 1px solid black;
+        }
+        th, td {
+            padding: 10px;
+            text-align: center;
+        }
+        #logout-btn {
+            float: right;
+            padding: 5px 10px;
+            background-color: #f44336;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        #search-bar {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .total-money {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Đăng nhập -->
+    <div id="login-section">
+        <h2>Đăng Nhập</h2>
+        <div>
+            <input type="text" id="username" placeholder="Tên đăng nhập">
+            <input type="password" id="password" placeholder="Mật khẩu">
+            <button onclick="login()">Đăng Nhập</button>
+        </div>
+        <p id="login-error" style="color: red; text-align: center;"></p>
+    </div>
+
+    <!-- Đăng nhập lần đầu - Nhập thông tin -->
+    <div id="first-login-form">
+        <h3>Nhập Thông Tin Cá Nhân</h3>
+        <input type="date" id="dob" placeholder="Ngày sinh">
+        <input type="text" id="position" placeholder="Vị trí công việc">
+        <button onclick="submitFirstLogin()">Xác nhận</button>
+    </div>
+
+    <!-- Báo cáo hàng tháng -->
+    <div id="report-section">
+        <h2>Báo Cáo Hàng Tháng</h2>
+        <button id="logout-btn" onclick="logout()">Đăng Xuất</button>
+
+        <div id="admin-controls" style="display: none;">
+            <!-- Form thêm nhân viên -->
+            <h3>Thêm Nhân Viên Mới</h3>
+            <input type="text" id="new-employee-name" placeholder="Tên đăng nhập nhân viên">
+            <input type="password" id="new-employee-password" placeholder="Mật khẩu nhân viên">
+            <button onclick="addEmployee()">Thêm Nhân Viên</button>
+
+            <h3>Xóa Nhân Viên</h3>
+            <input type="text" id="delete-employee-name" placeholder="Tên nhân viên">
+            <button onclick="deleteEmployee()">Xóa Nhân Viên</button>
+        </div>
+
+        <!-- Tìm kiếm nhân viên -->
+        <div id="search-bar">
+            <input type="text" id="search-name" placeholder="Tìm kiếm tên nhân viên" oninput="filterTable()">
+        </div>
+
+        <!-- Bảng nhập dữ liệu -->
+        <table id="report-table">
+            <thead>
+                <tr>
+                    <th>Ngày</th>
+                    <th>Giờ</th>
+                    <th>Nhân Viên</th>
+                    <th>Tên Kênh</th>
+                    <th>Số Đơn Hàng Ngày</th>
+                    <th>Thao Tác</th>
+                </tr>
+            </thead>
+            <tbody id="employee-rows">
+                <!-- Dòng dữ liệu cho nhân viên sẽ được thêm tại đây -->
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3"><strong>Tổng Đơn Toàn Công Ty</strong></td>
+                    <td id="company-total-orders">0</td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <!-- Thêm báo cáo mới -->
+        <h3>Thêm Báo Cáo Mới</h3>
+        <input type="date" id="new-date" placeholder="Ngày">
+        <input type="time" id="new-time" placeholder="Giờ">
+        <input type="text" id="new-channel" placeholder="Tên Kênh">
+        <input type="number" id="new-orders" placeholder="Số Đơn Hàng">
+        <button onclick="addNewReport()">Thêm Báo Cáo</button>
+
+        <!-- Bảng tổng đơn hàng tháng -->
+        <h3>Tổng Đơn Hàng Tháng</h3>
+        <table id="monthly-report-table">
+            <thead>
+                <tr>
+                    <th>Nhân Viên</th>
+                    <th>Tổng Đơn Tháng</th>
+                    <th>Giá Trị Tháng (VND)</th>
+                </tr>
+            </thead>
+            <tbody id="monthly-report-rows">
+                <!-- Dòng dữ liệu tổng sẽ được thêm tại đây -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const managerUsername = 'manager';
+        const managerPassword = 'admin123';
+        let accounts = {
+            'manager': { password: 'admin123', role: 'manager' }
+        };
+
+        let employees = [];
+        let employeeData = {};
+        let loggedInUser = '';
+        let isManager = false;
+
+        // Đăng nhập
+        function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            if (accounts[username] && accounts[username].password === password) {
+                loggedInUser = username;
+                isManager = accounts[username].role === 'manager';
+
+                if (isManager) {
+                    document.getElementById('login-section').style.display = 'none';
+                    document.getElementById('report-section').style.display = 'block';
+                    document.getElementById('admin-controls').style.display = 'block';
+                    updateTable();
+                } else {
+                    if (!accounts[username].info) {
+                        document.getElementById('login-section').style.display = 'none';
+                        document.getElementById('first-login-form').style.display = 'block';
+                    } else {
+                        document.getElementById('login-section').style.display = 'none';
+                        document.getElementById('report-section').style.display = 'block';
+                        updateTable();
+                    }
+                }
+            } else {
+                document.getElementById('login-error').innerText = "Thông tin đăng nhập không chính xác!";
+            }
+        }
+
+        // Nhập thông tin cá nhân lần đầu
+        function submitFirstLogin() {
+            const dob = document.getElementById('dob').value;
+            const position = document.getElementById('position').value;
+
+            if (dob && position) {
+                accounts[loggedInUser].info = { dob, position };
+
+                document.getElementById('first-login-form').style.display = 'none';
+                document.getElementById('report-section').style.display = 'block';
+
+                updateTable();
+            } else {
+                alert("Vui lòng nhập đầy đủ thông tin!");
+            }
+        }
+
+        // Đăng xuất
+        function logout() {
+            loggedInUser = '';
+            isManager = false;
+            document.getElementById('login-section').style.display = 'block';
+            document.getElementById('report-section').style.display = 'none';
+            document.getElementById('admin-controls').style.display = 'none';
+            document.getElementById('login-error').innerText = '';
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+        }
+
+        // Thêm nhân viên
+        function addEmployee() {
+            const newEmployeeName = document.getElementById('new-employee-name').value;
+            const newEmployeePassword = document.getElementById('new-employee-password').value;
+
+            if (newEmployeeName && newEmployeePassword) {
+                accounts[newEmployeeName] = { password: newEmployeePassword, role: 'employee' };
+                employees.push(newEmployeeName);
+                employeeData[newEmployeeName] = { reports: [], confirmed: false };
+                alert(`Nhân viên ${newEmployeeName} đã được thêm thành công!`);
+                updateTable();
+            } else {
+                alert("Vui lòng nhập tên và mật khẩu cho nhân viên!");
+            }
+        }
+
+        // Xóa nhân viên
+        function deleteEmployee() {
+            const deleteEmployeeName = document.getElementById('delete-employee-name').value;
+
+            if (accounts[deleteEmployeeName]) {
+                delete accounts[deleteEmployeeName];
+                employees = employees.filter(emp => emp !== deleteEmployeeName);
+                delete employeeData[deleteEmployeeName];
+                alert(`Nhân viên ${deleteEmployeeName} đã được xóa!`);
+                updateTable();
+            } else {
+                alert("Nhân viên không tồn tại!");
+            }
+        }
+
+        // Cập nhật bảng
+        function updateTable() {
+            const employeeRows = document.getElementById('employee-rows');
+            const monthlyReportRows = document.getElementById('monthly-report-rows');
+            employeeRows.innerHTML = '';
+            monthlyReportRows.innerHTML = '';
+
+            let totalOrders = 0;
+            let monthlyTotals = {};
+
+            employees.forEach(employee => {
+                const reports = employeeData[employee].reports;
+
+                reports.forEach(report => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${report.date}</td>
+                        <td>${report.time}</td>
+                        <td>${employee}</td>
+                        <td>${report.channel}</td>
+                        <td>${report.orders}</td>
+                        <td>${!report.confirmed ? `<button onclick="confirmReport('${employee}', '${report.date}', '${report.time}')">Xác Nhận</button>` : 'Đã xác nhận'}</td>
+                    `;
+                    employeeRows.appendChild(row);
+
+                    // Tính tổng số đơn hàng
+                    totalOrders += parseInt(report.orders);
+                    if (!monthlyTotals[employee]) {
+                        monthlyTotals[employee] = { totalOrders: 0, value: 0 };
+                    }
+                    monthlyTotals[employee].totalOrders += parseInt(report.orders);
+                    monthlyTotals[employee].value += parseInt(report.orders) * 10000; // 1 đơn = 10,000 VND
+                });
+            });
+
+            // Cập nhật tổng số đơn hàng
+            document.getElementById('company-total-orders').innerText = totalOrders;
+
+            // Cập nhật bảng tổng đơn hàng tháng
+            for (const [employee, totals] of Object.entries(monthlyTotals)) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${employee}</td>
+                    <td>${totals.totalOrders}</td>
+                    <td>${totals.value}</td>
+                `;
+                monthlyReportRows.appendChild(row);
+            }
+        }
+
+        // Thêm báo cáo mới
+        function addNewReport() {
+            const newDate = document.getElementById('new-date').value;
+            const newTime = document.getElementById('new-time').value;
+            const newChannel = document.getElementById('new-channel').value;
+            const newOrders = document.getElementById('new-orders').value;
+
+            if (newDate && newTime && newChannel && newOrders) {
+                const report = { date: newDate, time: newTime, channel: newChannel, orders: newOrders, confirmed: false };
+                employeeData[loggedInUser].reports.push(report);
+                updateTable();
+                alert("Báo cáo mới đã được thêm thành công!");
+
+                // Xóa các trường nhập liệu sau khi thêm
+                document.getElementById('new-date').value = '';
+                document.getElementById('new-time').value = '';
+                document.getElementById('new-channel').value = '';
+                document.getElementById('new-orders').value = '';
+            } else {
+                alert("Vui lòng nhập đầy đủ thông tin báo cáo!");
+            }
+        }
+
+        // Xác nhận báo cáo
+        function confirmReport(employee, date, time) {
+            const reportIndex = employeeData[employee].reports.findIndex(report => report.date === date && report.time === time);
+            if (reportIndex !== -1) {
+                const report = employeeData[employee].reports[reportIndex];
+                report.confirmed = true;
+                updateTable();
+            }
+        }
+
+        // Lọc bảng nhân viên
+        function filterTable() {
+            const searchValue = document.getElementById('search-name').value.toLowerCase();
+            const rows = document.querySelectorAll('#employee-rows tr');
+            rows.forEach(row => {
+                const employeeName = row.cells[2].textContent.toLowerCase();
+                if (employeeName.includes(searchValue)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+    </script>
+</body>
+</html>
